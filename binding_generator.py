@@ -367,6 +367,7 @@ def generate_builtin_class_header(builtin_api, size, used_classes, fully_used_cl
     if class_name == "String":
         result.append("#include <godot_cpp/variant/char_string.hpp>")
         result.append("#include <godot_cpp/variant/char_utils.hpp>")
+        result.append("#include <godot_cpp/classes/global_constants.hpp>")
 
     if class_name == "PackedStringArray":
         result.append("#include <godot_cpp/variant/string.hpp>")
@@ -376,6 +377,10 @@ def generate_builtin_class_header(builtin_api, size, used_classes, fully_used_cl
         result.append("#include <godot_cpp/variant/vector2.hpp>")
     if class_name == "PackedVector3Array":
         result.append("#include <godot_cpp/variant/vector3.hpp>")
+
+    if is_packed_array(class_name):
+        result.append("#include <godot_cpp/core/error_macros.hpp>")
+        result.append("#include <initializer_list>")
 
     if class_name == "Array":
         result.append("#include <godot_cpp/variant/array_helpers.hpp>")
@@ -693,7 +698,18 @@ def generate_builtin_class_header(builtin_api, size, used_classes, fully_used_cl
 		return ConstIterator(ptr() + size());
 	}
 """
+
         result.append(iterators.replace("$TYPE", return_type))
+        init_list = """
+    _FORCE_INLINE_ $CLASS(std::initializer_list<$TYPE> p_init) {
+		ERR_FAIL_COND(resize(p_init.size()) != 0);
+		size_t i = 0;
+		for (const $TYPE &element : p_init) {
+			set(i++, element);
+		}
+	}
+"""
+        result.append(init_list.replace("$TYPE", return_type).replace("$CLASS", class_name))
 
     if class_name == "Array":
         result.append("\tconst Variant &operator[](int p_index) const;")
@@ -1636,11 +1652,13 @@ def generate_global_constants(api, output_dir):
     header.append(f"#ifndef {header_guard}")
     header.append(f"#define {header_guard}")
     header.append("")
+    header.append("#include <cstdint>")
+    header.append("")
     header.append("namespace godot {")
     header.append("")
 
     for constant in api["global_constants"]:
-        header.append(f'\tconst int {escape_identifier(constant["name"])} = {constant["value"]};')
+        header.append(f'\tconst int64_t {escape_identifier(constant["name"])} = {constant["value"]};')
 
     header.append("")
 
@@ -1648,7 +1666,11 @@ def generate_global_constants(api, output_dir):
         if enum_def["name"].startswith("Variant."):
             continue
 
-        header.append(f'\tenum {enum_def["name"]} {{')
+        if enum_def["is_bitfield"]:
+            header.append(f'\tenum {enum_def["name"]} : uint64_t {{')
+        else:
+            header.append(f'\tenum {enum_def["name"]} {{')
+
         for value in enum_def["values"]:
             header.append(f'\t\t{value["name"]} = {value["value"]},')
         header.append("\t};")
@@ -1718,9 +1740,9 @@ def generate_global_constant_binds(api, output_dir):
             continue
 
         if enum_def["is_bitfield"]:
-            header.append(f'VARIANT_BITFIELD_CAST(godot::{enum_def["name"]});')
+            header.append(f'VARIANT_BITFIELD_CAST({enum_def["name"]});')
         else:
-            header.append(f'VARIANT_ENUM_CAST(godot::{enum_def["name"]});')
+            header.append(f'VARIANT_ENUM_CAST({enum_def["name"]});')
 
     # Variant::Type is not a global enum, but only one line, it is worth to place in this file instead of creating new file.
     header.append(f"VARIANT_ENUM_CAST(godot::Variant::Type);")

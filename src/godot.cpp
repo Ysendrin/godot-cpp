@@ -187,6 +187,36 @@ GDExtensionInterfaceGetLibraryPath gdextension_interface_get_library_path = null
 GDExtensionInterfaceEditorAddPlugin gdextension_interface_editor_add_plugin = nullptr;
 GDExtensionInterfaceEditorRemovePlugin gdextension_interface_editor_remove_plugin = nullptr;
 
+struct DocData {
+	const char *hash = nullptr;
+	int uncompressed_size = 0;
+	int compressed_size = 0;
+	const unsigned char *data = nullptr;
+
+	inline bool is_valid() const {
+		return hash != nullptr && uncompressed_size > 0 && compressed_size > 0 && data != nullptr;
+	}
+
+	void load_data() const;
+};
+
+static DocData &get_doc_data() {
+	static DocData doc_data;
+	return doc_data;
+}
+
+DocDataRegistration::DocDataRegistration(const char *p_hash, int p_uncompressed_size, int p_compressed_size, const unsigned char *p_data) {
+	DocData &doc_data = get_doc_data();
+	if (doc_data.is_valid()) {
+		printf("ERROR: Attempting to register documentation data when we already have some - discarding.\n");
+		return;
+	}
+	doc_data.hash = p_hash;
+	doc_data.uncompressed_size = p_uncompressed_size;
+	doc_data.compressed_size = p_compressed_size;
+	doc_data.data = p_data;
+}
+
 } // namespace internal
 
 GDExtensionBinding::Callback GDExtensionBinding::init_callback = nullptr;

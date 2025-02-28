@@ -181,7 +181,13 @@ extern "C" GDExtensionInterfaceGetLibraryPath gdextension_interface_get_library_
 extern "C" GDExtensionInterfaceEditorAddPlugin gdextension_interface_editor_add_plugin;
 extern "C" GDExtensionInterfaceEditorRemovePlugin gdextension_interface_editor_remove_plugin;
 
-} // namespace internal
+class DocDataRegistration {
+public:
+	DocDataRegistration(const char *p_hash, int p_uncompressed_size, int p_compressed_size, const unsigned char *p_data);
+};
+} //namespace internal
+
+// namespace internal
 
 enum ModuleInitializationLevel {
 	MODULE_INITIALIZATION_LEVEL_CORE = GDEXTENSION_INITIALIZATION_CORE,
